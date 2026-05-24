@@ -69,8 +69,8 @@ export default function Home() {
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-muted">
-                    Target: {formatPrice(item.target_price)} | Risk:{" "}
-                    {item.max_risk ?? "-"}
+                    Buy: {formatPrice(item.target_buy_price)} | Sell:{" "}
+                    {formatPrice(item.target_sell_price)}
                   </p>
                 </div>
               ))}

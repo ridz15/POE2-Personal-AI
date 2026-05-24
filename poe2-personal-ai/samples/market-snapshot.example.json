@@ -1,22 +1,147 @@
-[
-  {
-    "item_name": "Perfect Jeweller's Orb",
-    "league": "Dawn of the Hunt",
-    "price": 1.4,
-    "currency": "divine",
-    "liquidity": "medium",
-    "listings": 42,
-    "source": "manual-check",
-    "snapshot_time": "2026-05-24T14:00:00.000Z"
-  },
-  {
-    "item_name": "Greater Essence of Haste",
-    "league": "Dawn of the Hunt",
-    "price": 0.18,
-    "currency": "divine",
-    "liquidity": "high",
-    "listings": 130,
-    "source": "manual-check",
-    "snapshot_time": "2026-05-24T14:05:00.000Z"
-  }
-]
+{
+  "watched_items": [
+    {
+      "item_name": "Perfect Jeweller's Orb",
+      "category": "currency",
+      "target_buy_price": 1.35,
+      "target_sell_price": 1.8,
+      "notes": "Trending up sample for socket crafting demand.",
+      "active": true
+    },
+    {
+      "item_name": "Greater Essence of Haste",
+      "category": "essence",
+      "target_buy_price": 0.18,
+      "target_sell_price": 0.28,
+      "notes": "Trending down sample with abundant listings.",
+      "active": true
+    },
+    {
+      "item_name": "Expert Hexer's Robe",
+      "category": "base",
+      "target_buy_price": 0.55,
+      "target_sell_price": 0.82,
+      "notes": "Stable sample for crafting base watch.",
+      "active": true
+    }
+  ],
+  "snapshots": [
+    {
+      "item_name": "Perfect Jeweller's Orb",
+      "category": "currency",
+      "price": 1.15,
+      "currency": "divine",
+      "quantity_available": 58,
+      "listings_count": 61,
+      "min_price": 1.08,
+      "max_price": 1.26,
+      "median_price": 1.15,
+      "source": "manual-sample",
+      "snapshot_time": "2026-05-24T18:00:00.000Z"
+    },
+    {
+      "item_name": "Perfect Jeweller's Orb",
+      "category": "currency",
+      "price": 1.32,
+      "currency": "divine",
+      "quantity_available": 46,
+      "listings_count": 49,
+      "min_price": 1.25,
+      "max_price": 1.44,
+      "median_price": 1.32,
+      "source": "manual-sample",
+      "snapshot_time": "2026-05-24T19:00:00.000Z"
+    },
+    {
+      "item_name": "Perfect Jeweller's Orb",
+      "category": "currency",
+      "price": 1.58,
+      "currency": "divine",
+      "quantity_available": 31,
+      "listings_count": 36,
+      "min_price": 1.5,
+      "max_price": 1.72,
+      "median_price": 1.58,
+      "source": "manual-sample",
+      "snapshot_time": "2026-05-24T20:00:00.000Z"
+    },
+    {
+      "item_name": "Greater Essence of Haste",
+      "category": "essence",
+      "price": 0.32,
+      "currency": "divine",
+      "quantity_available": 88,
+      "listings_count": 94,
+      "min_price": 0.3,
+      "max_price": 0.37,
+      "median_price": 0.32,
+      "source": "manual-sample",
+      "snapshot_time": "2026-05-24T18:05:00.000Z"
+    },
+    {
+      "item_name": "Greater Essence of Haste",
+      "category": "essence",
+      "price": 0.25,
+      "currency": "divine",
+      "quantity_available": 122,
+      "listings_count": 130,
+      "min_price": 0.23,
+      "max_price": 0.29,
+      "median_price": 0.25,
+      "source": "manual-sample",
+      "snapshot_time": "2026-05-24T19:05:00.000Z"
+    },
+    {
+      "item_name": "Greater Essence of Haste",
+      "category": "essence",
+      "price": 0.19,
+      "currency": "divine",
+      "quantity_available": 165,
+      "listings_count": 178,
+      "min_price": 0.17,
+      "max_price": 0.23,
+      "median_price": 0.19,
+      "source": "manual-sample",
+      "snapshot_time": "2026-05-24T20:05:00.000Z"
+    },
+    {
+      "item_name": "Expert Hexer's Robe",
+      "category": "base",
+      "price": 0.62,
+      "currency": "divine",
+      "quantity_available": 38,
+      "listings_count": 42,
+      "min_price": 0.58,
+      "max_price": 0.68,
+      "median_price": 0.62,
+      "source": "manual-sample",
+      "snapshot_time": "2026-05-24T18:10:00.000Z"
+    },
+    {
+      "item_name": "Expert Hexer's Robe",
+      "category": "base",
+      "price": 0.63,
+      "currency": "divine",
+      "quantity_available": 41,
+      "listings_count": 44,
+      "min_price": 0.59,
+      "max_price": 0.69,
+      "median_price": 0.63,
+      "source": "manual-sample",
+      "snapshot_time": "2026-05-24T19:10:00.000Z"
+    },
+    {
+      "item_name": "Expert Hexer's Robe",
+      "category": "base",
+      "price": 0.62,
+      "currency": "divine",
+      "quantity_available": 39,
+      "listings_count": 43,
+      "min_price": 0.58,
+      "max_price": 0.67,
+      "median_price": 0.62,
+      "source": "manual-sample",
+      "snapshot_time": "2026-05-24T20:10:00.000Z"
+    }
+  ]
+}

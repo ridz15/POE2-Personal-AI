@@ -1,12 +1,24 @@
 import Link from "next/link";
-import { getRecentSnapshots, getSnapshotSummary } from "@/lib/db";
+import {
+  getLatestSnapshotsForWatchedItems,
+  getPriceHistoryForItem,
+  getRecentSnapshots,
+  getWatchedItems,
+} from "@/lib/db";
 import { formatDateTime, formatPrice } from "@/lib/format";
+import { analyzeMarket } from "@/lib/market-analysis";
+import { AiExplanationButton } from "./ai-explanation-button";
 
 export const dynamic = "force-dynamic";
 
 export default function SnapshotsPage() {
-  const summaries = getSnapshotSummary();
+  const watchedItems = getWatchedItems();
+  const latestRows = getLatestSnapshotsForWatchedItems();
   const snapshots = getRecentSnapshots(200);
+  const analyses = watchedItems.map((item) => ({
+    item,
+    history: getPriceHistoryForItem(item.item_name),
+  }));
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -31,43 +43,38 @@ export default function SnapshotsPage() {
 
         <section className="overflow-hidden rounded-lg border border-line bg-panel">
           <div className="border-b border-line px-5 py-4">
-            <h2 className="text-lg font-semibold">Ringkasan per item</h2>
+            <h2 className="text-lg font-semibold">Latest snapshot per watched item</h2>
           </div>
           <table className="w-full text-left text-sm">
             <thead className="bg-panel-soft text-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">Item</th>
-                <th className="px-4 py-3 font-medium">Sample</th>
+                <th className="px-4 py-3 font-medium">Category</th>
                 <th className="px-4 py-3 font-medium">Current</th>
-                <th className="px-4 py-3 font-medium">Min</th>
-                <th className="px-4 py-3 font-medium">Max</th>
-                <th className="px-4 py-3 font-medium">Last seen</th>
+                <th className="px-4 py-3 font-medium">Supply</th>
+                <th className="px-4 py-3 font-medium">Listings</th>
+                <th className="px-4 py-3 font-medium">Snapshot time</th>
               </tr>
             </thead>
             <tbody>
-              {summaries.map((summary) => (
-                <tr key={summary.item_name} className="border-t border-line">
-                  <td className="px-4 py-4 font-medium">{summary.item_name}</td>
-                  <td className="px-4 py-4 font-mono">{summary.sample_count}</td>
+              {latestRows.map((row) => (
+                <tr key={row.id} className="border-t border-line">
+                  <td className="px-4 py-4 font-medium">{row.item_name}</td>
+                  <td className="px-4 py-4 text-muted">{row.category ?? "-"}</td>
                   <td className="px-4 py-4 font-mono text-accent">
-                    {formatPrice(summary.current_price)}
+                    {formatPrice(row.median_price ?? row.price, row.currency ?? "divine")}
                   </td>
-                  <td className="px-4 py-4 font-mono">
-                    {formatPrice(summary.min_price)}
-                  </td>
-                  <td className="px-4 py-4 font-mono">
-                    {formatPrice(summary.max_price)}
-                  </td>
+                  <td className="px-4 py-4 font-mono">{row.quantity_available ?? "-"}</td>
+                  <td className="px-4 py-4 font-mono">{row.listings_count ?? "-"}</td>
                   <td className="px-4 py-4 text-muted">
-                    {formatDateTime(summary.last_seen)}
+                    {formatDateTime(row.snapshot_time)}
                   </td>
                 </tr>
               ))}
-              {summaries.length === 0 ? (
+              {latestRows.length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-muted" colSpan={6}>
-                    Belum ada data harga. Import file JSON dengan perintah
-                    db:import.
+                    Belum ada watched item. Tambahkan item di halaman Watched Items.
                   </td>
                 </tr>
               ) : null}
@@ -75,17 +82,79 @@ export default function SnapshotsPage() {
           </table>
         </section>
 
+        <section className="grid gap-5">
+          <div>
+            <h2 className="text-xl font-semibold">Analysis result</h2>
+            <p className="mt-2 text-sm text-muted">
+              Perhitungan ini deterministik dari snapshot lokal sebelum AI dipanggil.
+            </p>
+          </div>
+          {analyses.map(({ item, history }) => {
+            const analysis = analyzeMarket(item, history);
+
+            return (
+              <div
+                key={item.id}
+                className="rounded-lg border border-line bg-panel p-5"
+              >
+                <div className="grid gap-5 lg:grid-cols-[1fr_240px]">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h3 className="text-lg font-semibold">{item.item_name}</h3>
+                      <span className="rounded-md border border-line px-2 py-1 text-xs text-muted">
+                        {item.category ?? "uncategorized"}
+                      </span>
+                      <span className="rounded-md border border-line px-2 py-1 text-xs text-muted">
+                        {item.active ? "active" : "inactive"}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <Signal label="Current" value={formatPrice(analysis.current_price)} />
+                      <Signal label="Previous" value={formatPrice(analysis.previous_price)} />
+                      <Signal
+                        label="Change"
+                        value={
+                          analysis.price_change_percent === null
+                            ? "-"
+                            : `${analysis.price_change_percent}%`
+                        }
+                      />
+                      <Signal label="Trend" value={analysis.trend} />
+                      <Signal label="Supply" value={analysis.supply_signal} />
+                      <Signal label="Liquidity" value={analysis.liquidity_signal} />
+                      <Signal label="Volatility" value={analysis.volatility_risk} />
+                      <Signal label="Flip score" value={`${analysis.flip_score}/100`} />
+                    </div>
+                    <p className="mt-4 text-sm text-muted">
+                      Recommendation:{" "}
+                      <span className="font-semibold text-accent">
+                        {analysis.recommendation}
+                      </span>
+                      {analysis.missing_data.length
+                        ? ` | Missing data: ${analysis.missing_data.join(", ")}`
+                        : ""}
+                    </p>
+                  </div>
+                  <AiExplanationButton itemName={item.item_name} />
+                </div>
+              </div>
+            );
+          })}
+        </section>
+
         <section className="overflow-hidden rounded-lg border border-line bg-panel">
           <div className="border-b border-line px-5 py-4">
-            <h2 className="text-lg font-semibold">Snapshot terbaru</h2>
+            <h2 className="text-lg font-semibold">Price history table</h2>
           </div>
           <table className="w-full text-left text-sm">
             <thead className="bg-panel-soft text-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">Item</th>
-                <th className="px-4 py-3 font-medium">League</th>
+                <th className="px-4 py-3 font-medium">Category</th>
                 <th className="px-4 py-3 font-medium">Harga</th>
-                <th className="px-4 py-3 font-medium">Liquidity</th>
+                <th className="px-4 py-3 font-medium">Median</th>
+                <th className="px-4 py-3 font-medium">Range</th>
+                <th className="px-4 py-3 font-medium">Supply</th>
                 <th className="px-4 py-3 font-medium">Listings</th>
                 <th className="px-4 py-3 font-medium">Waktu</th>
               </tr>
@@ -95,16 +164,23 @@ export default function SnapshotsPage() {
                 <tr key={snapshot.id} className="border-t border-line">
                   <td className="px-4 py-4 font-medium">{snapshot.item_name}</td>
                   <td className="px-4 py-4 text-muted">
-                    {snapshot.league ?? "-"}
+                    {snapshot.category ?? "-"}
                   </td>
                   <td className="px-4 py-4 font-mono text-accent">
                     {formatPrice(snapshot.price, snapshot.currency)}
                   </td>
-                  <td className="px-4 py-4 text-muted">
-                    {snapshot.liquidity ?? "-"}
+                  <td className="px-4 py-4 font-mono">
+                    {formatPrice(snapshot.median_price, snapshot.currency)}
                   </td>
                   <td className="px-4 py-4 font-mono">
-                    {snapshot.listings ?? "-"}
+                    {formatPrice(snapshot.min_price, snapshot.currency)} -{" "}
+                    {formatPrice(snapshot.max_price, snapshot.currency)}
+                  </td>
+                  <td className="px-4 py-4 font-mono">
+                    {snapshot.quantity_available ?? "-"}
+                  </td>
+                  <td className="px-4 py-4 font-mono">
+                    {snapshot.listings_count ?? "-"}
                   </td>
                   <td className="px-4 py-4 text-muted">
                     {formatDateTime(snapshot.snapshot_time)}
@@ -113,7 +189,7 @@ export default function SnapshotsPage() {
               ))}
               {snapshots.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-muted" colSpan={6}>
+                  <td className="px-4 py-6 text-muted" colSpan={8}>
                     Tidak ada snapshot untuk ditampilkan.
                   </td>
                 </tr>
@@ -123,5 +199,14 @@ export default function SnapshotsPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function Signal({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-line bg-panel-soft p-3">
+      <p className="text-xs uppercase text-muted">{label}</p>
+      <p className="mt-2 font-mono text-sm text-foreground">{value}</p>
+    </div>
   );
 }

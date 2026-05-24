@@ -9,9 +9,10 @@ let db: Db | null = null;
 export type WatchedItem = {
   id: number;
   item_name: string;
+  category: string | null;
   notes: string | null;
-  target_price: number | null;
-  max_risk: string | null;
+  target_buy_price: number | null;
+  target_sell_price: number | null;
   active: 0 | 1;
   created_at: string;
   updated_at: string;
@@ -20,14 +21,31 @@ export type WatchedItem = {
 export type MarketSnapshot = {
   id: number;
   item_name: string;
+  category: string | null;
   league: string | null;
   price: number;
   currency: string;
-  liquidity: string | null;
-  listings: number | null;
+  quantity_available: number | null;
+  listings_count: number | null;
+  min_price: number | null;
+  max_price: number | null;
+  median_price: number | null;
   source: string | null;
   snapshot_time: string;
   created_at: string;
+};
+
+export type LatestWatchedSnapshot = WatchedItem & {
+  snapshot_id: number | null;
+  price: number | null;
+  currency: string | null;
+  quantity_available: number | null;
+  listings_count: number | null;
+  min_price: number | null;
+  max_price: number | null;
+  median_price: number | null;
+  source: string | null;
+  snapshot_time: string | null;
 };
 
 export function getDb() {
@@ -49,8 +67,11 @@ export function initializeSchema(database = getDb()) {
     CREATE TABLE IF NOT EXISTS watched_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       item_name TEXT NOT NULL UNIQUE,
+      category TEXT,
       notes TEXT,
       target_price REAL,
+      target_buy_price REAL,
+      target_sell_price REAL,
       max_risk TEXT,
       active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -60,11 +81,17 @@ export function initializeSchema(database = getDb()) {
     CREATE TABLE IF NOT EXISTS market_snapshots (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       item_name TEXT NOT NULL,
+      category TEXT,
       league TEXT,
       price REAL NOT NULL,
       currency TEXT NOT NULL DEFAULT 'divine',
       liquidity TEXT,
       listings INTEGER,
+      quantity_available INTEGER,
+      listings_count INTEGER,
+      min_price REAL,
+      max_price REAL,
+      median_price REAL,
       source TEXT,
       snapshot_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       raw_json TEXT,
@@ -91,12 +118,73 @@ export function initializeSchema(database = getDb()) {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  migrateSchema(database);
+}
+
+function migrateSchema(database: Db) {
+  const columnsFor = (table: string) =>
+    new Set(
+      (database.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map(
+        (column) => column.name,
+      ),
+    );
+
+  const watchedColumns = columnsFor("watched_items");
+  const watchedMigrations = [
+    ["category", "ALTER TABLE watched_items ADD COLUMN category TEXT"],
+    ["target_buy_price", "ALTER TABLE watched_items ADD COLUMN target_buy_price REAL"],
+    ["target_sell_price", "ALTER TABLE watched_items ADD COLUMN target_sell_price REAL"],
+  ] as const;
+
+  for (const [column, statement] of watchedMigrations) {
+    if (!watchedColumns.has(column)) {
+      database.exec(statement);
+    }
+  }
+
+  database.exec(`
+    UPDATE watched_items
+    SET target_buy_price = COALESCE(target_buy_price, target_price)
+    WHERE target_price IS NOT NULL;
+  `);
+
+  const snapshotColumns = columnsFor("market_snapshots");
+  const snapshotMigrations = [
+    ["category", "ALTER TABLE market_snapshots ADD COLUMN category TEXT"],
+    [
+      "quantity_available",
+      "ALTER TABLE market_snapshots ADD COLUMN quantity_available INTEGER",
+    ],
+    ["listings_count", "ALTER TABLE market_snapshots ADD COLUMN listings_count INTEGER"],
+    ["min_price", "ALTER TABLE market_snapshots ADD COLUMN min_price REAL"],
+    ["max_price", "ALTER TABLE market_snapshots ADD COLUMN max_price REAL"],
+    ["median_price", "ALTER TABLE market_snapshots ADD COLUMN median_price REAL"],
+  ] as const;
+
+  for (const [column, statement] of snapshotMigrations) {
+    if (!snapshotColumns.has(column)) {
+      database.exec(statement);
+    }
+  }
+
+  database.exec(`
+    UPDATE market_snapshots
+    SET listings_count = COALESCE(listings_count, listings)
+    WHERE listings IS NOT NULL;
+
+    UPDATE market_snapshots
+    SET median_price = COALESCE(median_price, price),
+        min_price = COALESCE(min_price, price),
+        max_price = COALESCE(max_price, price)
+    WHERE price IS NOT NULL;
+  `);
 }
 
 export function getWatchedItems() {
   return getDb()
     .prepare(
-      `SELECT id, item_name, notes, target_price, max_risk, active, created_at, updated_at
+      `SELECT id, item_name, category, notes, target_buy_price, target_sell_price, active, created_at, updated_at
        FROM watched_items
        ORDER BY active DESC, item_name ASC`,
     )
@@ -106,7 +194,7 @@ export function getWatchedItems() {
 export function getRecentSnapshots(limit = 100) {
   return getDb()
     .prepare(
-      `SELECT id, item_name, league, price, currency, liquidity, listings, source, snapshot_time, created_at
+      `SELECT id, item_name, category, league, price, currency, quantity_available, listings_count, min_price, max_price, median_price, source, snapshot_time, created_at
        FROM market_snapshots
        ORDER BY datetime(snapshot_time) DESC, id DESC
        LIMIT ?`,
@@ -146,10 +234,47 @@ export function getSnapshotSummary() {
 export function getPriceHistoryForItem(itemName: string) {
   return getDb()
     .prepare(
-      `SELECT item_name, league, price, currency, liquidity, listings, source, snapshot_time, created_at
+      `SELECT id, item_name, category, league, price, currency, quantity_available, listings_count, min_price, max_price, median_price, source, snapshot_time, created_at
        FROM market_snapshots
        WHERE item_name = ?
        ORDER BY datetime(snapshot_time) ASC, id ASC`,
     )
     .all(itemName) as MarketSnapshot[];
+}
+
+export function getLatestSnapshotsForWatchedItems() {
+  return getDb()
+    .prepare(
+      `SELECT
+        watched_items.id,
+        watched_items.item_name,
+        watched_items.category,
+        watched_items.notes,
+        watched_items.target_buy_price,
+        watched_items.target_sell_price,
+        watched_items.active,
+        watched_items.created_at,
+        watched_items.updated_at,
+        latest.id as snapshot_id,
+        latest.price,
+        latest.currency,
+        latest.quantity_available,
+        latest.listings_count,
+        latest.min_price,
+        latest.max_price,
+        latest.median_price,
+        latest.source,
+        latest.snapshot_time
+       FROM watched_items
+       LEFT JOIN market_snapshots latest
+         ON latest.id = (
+          SELECT id
+          FROM market_snapshots
+          WHERE market_snapshots.item_name = watched_items.item_name
+          ORDER BY datetime(snapshot_time) DESC, id DESC
+          LIMIT 1
+        )
+       ORDER BY watched_items.active DESC, watched_items.item_name ASC`,
+    )
+    .all() as LatestWatchedSnapshot[];
 }

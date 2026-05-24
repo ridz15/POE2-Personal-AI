@@ -14,8 +14,8 @@ function optionalNumber(value: FormDataEntryValue | null) {
 
 export async function addWatchedItem(formData: FormData) {
   const itemName = String(formData.get("item_name") ?? "").trim();
+  const category = String(formData.get("category") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
-  const maxRisk = String(formData.get("max_risk") ?? "").trim();
 
   if (!itemName) {
     return;
@@ -23,23 +23,69 @@ export async function addWatchedItem(formData: FormData) {
 
   getDb()
     .prepare(
-      `INSERT INTO watched_items (item_name, notes, target_price, max_risk)
-       VALUES (@itemName, @notes, @targetPrice, @maxRisk)
+      `INSERT INTO watched_items (
+        item_name, category, notes, target_buy_price, target_sell_price, active
+       )
+       VALUES (
+        @itemName, @category, @notes, @targetBuyPrice, @targetSellPrice, @active
+       )
        ON CONFLICT(item_name) DO UPDATE SET
+         category = excluded.category,
          notes = excluded.notes,
-         target_price = excluded.target_price,
-         max_risk = excluded.max_risk,
+         target_buy_price = excluded.target_buy_price,
+         target_sell_price = excluded.target_sell_price,
          active = 1,
          updated_at = CURRENT_TIMESTAMP`,
     )
     .run({
       itemName,
+      category: category || null,
       notes: notes || null,
-      targetPrice: optionalNumber(formData.get("target_price")),
-      maxRisk: maxRisk || null,
+      targetBuyPrice: optionalNumber(formData.get("target_buy_price")),
+      targetSellPrice: optionalNumber(formData.get("target_sell_price")),
+      active: 1,
     });
 
   revalidatePath("/watched-items");
+  revalidatePath("/snapshots");
+  revalidatePath("/");
+}
+
+export async function updateWatchedItem(formData: FormData) {
+  const id = Number(formData.get("id"));
+  const itemName = String(formData.get("item_name") ?? "").trim();
+  const category = String(formData.get("category") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim();
+  const active = formData.get("active") === "on" ? 1 : 0;
+
+  if (!Number.isInteger(id) || !itemName) {
+    return;
+  }
+
+  getDb()
+    .prepare(
+      `UPDATE watched_items
+       SET item_name = @itemName,
+           category = @category,
+           notes = @notes,
+           target_buy_price = @targetBuyPrice,
+           target_sell_price = @targetSellPrice,
+           active = @active,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = @id`,
+    )
+    .run({
+      id,
+      itemName,
+      category: category || null,
+      notes: notes || null,
+      targetBuyPrice: optionalNumber(formData.get("target_buy_price")),
+      targetSellPrice: optionalNumber(formData.get("target_sell_price")),
+      active,
+    });
+
+  revalidatePath("/watched-items");
+  revalidatePath("/snapshots");
   revalidatePath("/");
 }
 
@@ -60,6 +106,7 @@ export async function toggleWatchedItem(formData: FormData) {
     .run(active, id);
 
   revalidatePath("/watched-items");
+  revalidatePath("/snapshots");
   revalidatePath("/");
 }
 
@@ -73,5 +120,6 @@ export async function deleteWatchedItem(formData: FormData) {
   getDb().prepare("DELETE FROM watched_items WHERE id = ?").run(id);
 
   revalidatePath("/watched-items");
+  revalidatePath("/snapshots");
   revalidatePath("/");
 }
