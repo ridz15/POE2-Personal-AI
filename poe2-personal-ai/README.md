@@ -15,7 +15,14 @@ Ini bukan trading bot. Tidak ada auto-buy, auto-whisper, browser automation, scr
 
 ## Setup
 
-Salin `.env.example` menjadi `.env.local`, lalu isi `OPENAI_API_KEY` jika ingin memakai AI explanation.
+Salin `.env.example` menjadi `.env.local`.
+
+```txt
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-5.2
+```
+
+`OPENAI_API_KEY` diperlukan untuk jawaban AI penuh. Jika key kosong atau OpenAI sedang gagal, `/ai-chat` tetap memakai fallback deterministik dari data SQLite lokal.
 
 ```bash
 npm install
@@ -131,3 +138,38 @@ Response:
   ]
 }
 ```
+
+## Personal AI Chat
+
+Buka `/ai-chat` untuk bertanya ke AI memakai data SQLite lokal yang sudah diimport. Chat membaca watched items, snapshot history, latest snapshot, deterministic analysis, dan AI reports yang tersimpan.
+
+Contoh pertanyaan:
+
+- "Ringkas market watchlist saya hari ini"
+- "Item mana yang paling worth dipantau?"
+- "Apa item yang sudah kena target buy?"
+- "Kenapa item ini flip_score tinggi?"
+- "Apa risiko dari item ini?"
+
+Tombol cepat yang tersedia:
+
+- `Summarize market watchlist`
+- `Find best flip opportunity`
+- `Show items hitting target buy`
+- `Show high risk items`
+
+AI chat hanya mengetahui data lokal yang sudah kamu import. AI tidak punya akses real-time ke market, tidak boleh mengarang harga/history, dan tidak boleh menyarankan auto-buy, auto-whisper, browser automation, atau trade bot behavior.
+
+Test fallback chat tanpa browser:
+
+```bash
+npm run ai:chat:test -- "Find best flip opportunity"
+```
+
+Troubleshooting kalau UI terlihat stuck di `Sending`:
+
+- Pastikan build terbaru sudah berjalan.
+- Cek `.env.local`; tanpa `OPENAI_API_KEY`, app akan menampilkan fallback deterministik dan error yang jelas.
+- Jika OpenAI lambat lebih dari 30 detik, API mengembalikan `AI request timed out`.
+- Jika database belum siap, jalankan `npm run db:init` dan import sample CSV/JSON.
+- Error API akan tampil sebagai bubble merah di chat, bukan gagal diam-diam.

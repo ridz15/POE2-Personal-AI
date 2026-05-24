@@ -44,6 +44,12 @@ export default function Home() {
             >
               Price Snapshots
             </Link>
+            <Link
+              href="/ai-chat"
+              className="rounded-md border border-line px-4 py-2 text-sm font-semibold transition hover:border-accent hover:text-accent"
+            >
+              AI Chat
+            </Link>
           </nav>
         </header>
 

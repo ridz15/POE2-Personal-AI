@@ -4,7 +4,8 @@ export type RawSnapshotRow = Record<string, unknown>;
 
 export type ImportSummary = {
   imported: number;
-  skipped: number;
+  skippedDuplicate: number;
+  skippedInvalid: number;
   errors: string[];
 };
 
@@ -70,8 +71,24 @@ export function importSnapshotRows(
       @minPrice, @maxPrice, @medianPrice, @snapshotTime, @source, @notes, @rawJson
     )
   `);
+  const existing = db.prepare(`
+    SELECT id
+    FROM market_snapshots
+    WHERE item_name = @itemName
+      AND COALESCE(category, '') = COALESCE(@category, '')
+      AND price = @price
+      AND currency = @currency
+      AND snapshot_time = @snapshotTime
+      AND COALESCE(source, '') = COALESCE(@source, '')
+    LIMIT 1
+  `);
 
-  const summary: ImportSummary = { imported: 0, skipped: 0, errors: [] };
+  const summary: ImportSummary = {
+    imported: 0,
+    skippedDuplicate: 0,
+    skippedInvalid: 0,
+    errors: [],
+  };
   const validRows: Array<Record<string, unknown>> = [];
 
   rows.forEach((row, index) => {
@@ -119,7 +136,7 @@ export function importSnapshotRows(
     }
 
     if (rowErrors.length) {
-      summary.skipped += 1;
+      summary.skippedInvalid += 1;
       summary.errors.push(`Row ${rowNumber}: ${rowErrors.join("; ")}`);
       return;
     }
@@ -143,12 +160,17 @@ export function importSnapshotRows(
 
   const importRows = db.transaction((values: Array<Record<string, unknown>>) => {
     for (const value of values) {
+      if (existing.get(value)) {
+        summary.skippedDuplicate += 1;
+        continue;
+      }
+
       insert.run(value);
+      summary.imported += 1;
     }
   });
 
   importRows(validRows);
-  summary.imported = validRows.length;
 
   return summary;
 }
@@ -159,6 +181,6 @@ export function printImportSummary(summary: ImportSummary) {
   }
 
   console.log(
-    `Import summary: ${summary.imported} imported, ${summary.skipped} skipped.`,
+    `Import summary: ${summary.imported} imported, ${summary.skippedDuplicate} duplicate skipped, ${summary.skippedInvalid} invalid skipped.`,
   );
 }

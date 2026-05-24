@@ -8,6 +8,7 @@
     "db:init": "tsx scripts/init-db.ts",
     "db:import": "tsx scripts/import-market-snapshot.ts",
     "db:import:csv": "tsx scripts/import-market-snapshot-csv.ts",
+    "ai:chat:test": "tsx scripts/test-ai-chat.ts",
     "market:analyze": "tsx scripts/test-market-analysis.ts",
     "start": "next start",
     "lint": "eslint"

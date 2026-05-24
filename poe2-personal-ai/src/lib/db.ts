@@ -50,6 +50,28 @@ export type LatestWatchedSnapshot = WatchedItem & {
   snapshot_time: string | null;
 };
 
+export type ChatSession = {
+  id: number;
+  title: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ChatMessage = {
+  id: number;
+  session_id: number;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+};
+
+export type AiReport = {
+  id: number;
+  item_name: string;
+  report_json: string;
+  created_at: string;
+};
+
 export function getDb() {
   if (!db) {
     const dataDir = path.join(process.cwd(), "data");
@@ -120,6 +142,25 @@ export function initializeSchema(database = getDb()) {
       report_json TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS ai_chat_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id INTEGER NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (session_id) REFERENCES ai_chat_sessions(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_ai_chat_messages_session_time
+      ON ai_chat_messages (session_id, created_at, id);
   `);
 
   migrateSchema(database);
@@ -240,7 +281,12 @@ export function getPriceHistoryForItem(itemName: string) {
     .prepare(
       `SELECT id, item_name, category, league, price, currency, quantity_available, listings_count, min_price, max_price, median_price, source, notes, snapshot_time, created_at
        FROM market_snapshots
-       WHERE item_name = ?
+       WHERE id IN (
+        SELECT MIN(id)
+        FROM market_snapshots
+        WHERE item_name = ?
+        GROUP BY item_name, COALESCE(category, ''), price, currency, snapshot_time, COALESCE(source, '')
+       )
        ORDER BY datetime(snapshot_time) ASC, id ASC`,
     )
     .all(itemName) as MarketSnapshot[];
@@ -292,4 +338,75 @@ export function getWatchedItemByName(itemName: string) {
        WHERE item_name = ?`,
     )
     .get(itemName) as WatchedItem | undefined;
+}
+
+export function getOrCreateDefaultChatSession() {
+  const existing = getDb()
+    .prepare(
+      `SELECT id, title, created_at, updated_at
+       FROM ai_chat_sessions
+       ORDER BY id ASC
+       LIMIT 1`,
+    )
+    .get() as ChatSession | undefined;
+
+  if (existing) {
+    return existing;
+  }
+
+  const result = getDb()
+    .prepare("INSERT INTO ai_chat_sessions (title) VALUES (?)")
+    .run("Personal PoE2 Market Chat");
+
+  return getDb()
+    .prepare(
+      `SELECT id, title, created_at, updated_at
+       FROM ai_chat_sessions
+       WHERE id = ?`,
+    )
+    .get(result.lastInsertRowid) as ChatSession;
+}
+
+export function getChatMessages(sessionId: number, limit = 50) {
+  return getDb()
+    .prepare(
+      `SELECT id, session_id, role, content, created_at
+       FROM ai_chat_messages
+       WHERE session_id = ?
+       ORDER BY datetime(created_at) ASC, id ASC
+       LIMIT ?`,
+    )
+    .all(sessionId, limit) as ChatMessage[];
+}
+
+export function addChatMessage(
+  sessionId: number,
+  role: ChatMessage["role"],
+  content: string,
+) {
+  getDb()
+    .prepare(
+      `INSERT INTO ai_chat_messages (session_id, role, content)
+       VALUES (?, ?, ?)`,
+    )
+    .run(sessionId, role, content);
+
+  getDb()
+    .prepare(
+      `UPDATE ai_chat_sessions
+       SET updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+    )
+    .run(sessionId);
+}
+
+export function getRecentAiReports(limit = 20) {
+  return getDb()
+    .prepare(
+      `SELECT id, item_name, report_json, created_at
+       FROM ai_reports
+       ORDER BY datetime(created_at) DESC, id DESC
+       LIMIT ?`,
+    )
+    .all(limit) as AiReport[];
 }
