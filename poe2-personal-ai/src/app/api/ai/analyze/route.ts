@@ -16,12 +16,14 @@ const reportSchema = {
   properties: {
     item_name: { type: "string" },
     summary: { type: "string" },
-    current_price: { type: ["number", "null"] },
-    trend: { type: "string", enum: ["up", "down", "stable", "unknown"] },
-    flip_score: { type: "number", minimum: 0, maximum: 100 },
-    recommendation: { type: "string", enum: ["buy", "watch", "avoid", "sell"] },
-    reasoning: { type: "string" },
+    recommendation: { type: "string" },
+    confidence: { type: "number", minimum: 0, maximum: 100 },
+    key_reasons: {
+      type: "array",
+      items: { type: "string" },
+    },
     risk: { type: "string", enum: ["low", "medium", "high", "unknown"] },
+    suggested_action: { type: "string" },
     missing_data: {
       type: "array",
       items: { type: "string" },
@@ -30,12 +32,11 @@ const reportSchema = {
   required: [
     "item_name",
     "summary",
-    "current_price",
-    "trend",
-    "flip_score",
     "recommendation",
-    "reasoning",
+    "confidence",
+    "key_reasons",
     "risk",
+    "suggested_action",
     "missing_data",
   ],
 };
@@ -82,7 +83,9 @@ export async function POST(request: Request) {
 
     return {
       item_name: target,
+      watched_item: watchedItem,
       deterministic_analysis: analyzeMarket(watchedItem, priceHistory),
+      latest_snapshot: priceHistory.at(-1) ?? null,
       price_history: priceHistory,
     };
   });
@@ -101,14 +104,14 @@ export async function POST(request: Request) {
       {
         role: "system",
         content:
-          "You explain Path of Exile 2 market analysis for a personal assistant. Use deterministic_analysis as the source of truth. Do not invent or alter prices, trends, scores, recommendations, or missing_data. Return cautious structured JSON only. Do not recommend automation, auto-buying, auto-whispering, scraping abuse, or trade bot behavior.",
+          "You explain Path of Exile 2 market analysis for a manual analyst tool. Use deterministic_analysis, latest_snapshot, watched_item targets/notes, and price_history as the only source of truth. Do not invent or alter prices, market history, reason codes, confidence, or recommendation. Do not recommend automated buying, auto-whisper, scraping abuse, or trade bot behavior. If data is not enough, say data is not enough. Return structured JSON only.",
       },
       {
         role: "user",
         content: JSON.stringify({
           task: "Analyze watched item price history for market flipping and crafting workflow awareness.",
           output_contract:
-            "Return one report per item. Explain the deterministic result in human terms. The recommendation must be manual decision support only.",
+            "Return one report per item. Explain the deterministic result in human terms for manual review only.",
           histories,
         }),
       },
@@ -136,12 +139,11 @@ export async function POST(request: Request) {
     reports: Array<{
       item_name: string;
       summary: string;
-      current_price: number | null;
-      trend: string;
-      flip_score: number;
       recommendation: string;
-      reasoning: string;
+      confidence: number;
+      key_reasons: string[];
       risk: string;
+      suggested_action: string;
       missing_data: string[];
     }>;
   };

@@ -31,6 +31,7 @@ export type MarketSnapshot = {
   max_price: number | null;
   median_price: number | null;
   source: string | null;
+  notes: string | null;
   snapshot_time: string;
   created_at: string;
 };
@@ -45,6 +46,7 @@ export type LatestWatchedSnapshot = WatchedItem & {
   max_price: number | null;
   median_price: number | null;
   source: string | null;
+  notes: string | null;
   snapshot_time: string | null;
 };
 
@@ -93,6 +95,7 @@ export function initializeSchema(database = getDb()) {
       max_price REAL,
       median_price REAL,
       source TEXT,
+      notes TEXT,
       snapshot_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       raw_json TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -160,6 +163,7 @@ function migrateSchema(database: Db) {
     ["min_price", "ALTER TABLE market_snapshots ADD COLUMN min_price REAL"],
     ["max_price", "ALTER TABLE market_snapshots ADD COLUMN max_price REAL"],
     ["median_price", "ALTER TABLE market_snapshots ADD COLUMN median_price REAL"],
+    ["notes", "ALTER TABLE market_snapshots ADD COLUMN notes TEXT"],
   ] as const;
 
   for (const [column, statement] of snapshotMigrations) {
@@ -194,7 +198,7 @@ export function getWatchedItems() {
 export function getRecentSnapshots(limit = 100) {
   return getDb()
     .prepare(
-      `SELECT id, item_name, category, league, price, currency, quantity_available, listings_count, min_price, max_price, median_price, source, snapshot_time, created_at
+      `SELECT id, item_name, category, league, price, currency, quantity_available, listings_count, min_price, max_price, median_price, source, notes, snapshot_time, created_at
        FROM market_snapshots
        ORDER BY datetime(snapshot_time) DESC, id DESC
        LIMIT ?`,
@@ -234,7 +238,7 @@ export function getSnapshotSummary() {
 export function getPriceHistoryForItem(itemName: string) {
   return getDb()
     .prepare(
-      `SELECT id, item_name, category, league, price, currency, quantity_available, listings_count, min_price, max_price, median_price, source, snapshot_time, created_at
+      `SELECT id, item_name, category, league, price, currency, quantity_available, listings_count, min_price, max_price, median_price, source, notes, snapshot_time, created_at
        FROM market_snapshots
        WHERE item_name = ?
        ORDER BY datetime(snapshot_time) ASC, id ASC`,
@@ -264,6 +268,7 @@ export function getLatestSnapshotsForWatchedItems() {
         latest.max_price,
         latest.median_price,
         latest.source,
+        latest.notes,
         latest.snapshot_time
        FROM watched_items
        LEFT JOIN market_snapshots latest
@@ -277,4 +282,14 @@ export function getLatestSnapshotsForWatchedItems() {
        ORDER BY watched_items.active DESC, watched_items.item_name ASC`,
     )
     .all() as LatestWatchedSnapshot[];
+}
+
+export function getWatchedItemByName(itemName: string) {
+  return getDb()
+    .prepare(
+      `SELECT id, item_name, category, notes, target_buy_price, target_sell_price, active, created_at, updated_at
+       FROM watched_items
+       WHERE item_name = ?`,
+    )
+    .get(itemName) as WatchedItem | undefined;
 }

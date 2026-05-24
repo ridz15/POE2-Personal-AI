@@ -1,20 +1,21 @@
-PoE2 Personal AI adalah fondasi asisten pribadi untuk analisis market Path of Exile 2, workflow crafting, dan riset build non-meta di fase berikutnya.
+PoE2 Personal AI adalah alat analis manual untuk market Path of Exile 2. Fokusnya adalah import CSV/JSON, analisis deterministik, dan penjelasan AI berbasis data lokal.
 
-## Fitur Market Snapshot Analyzer v1
+Ini bukan trading bot. Tidak ada auto-buy, auto-whisper, browser automation, scraping otomatis, atau otomasi terhadap trade site.
+
+## Fitur
 
 - Next.js App Router.
 - SQLite lokal di `data/poe2-personal-ai.sqlite`.
 - Tabel: `market_snapshots`, `watched_items`, `poe_entries`, `ai_reports`.
-- Halaman `/watched-items` untuk create, edit, delete, dan toggle item pantauan.
-- Halaman `/snapshots` untuk latest snapshot per watched item, price history, dan hasil analisis.
-- Analisis market deterministik sebelum AI dipanggil.
-- Script import manual untuk watched items dan snapshot market dari JSON.
-- Endpoint AI `POST /api/ai/analyze` untuk menjelaskan hasil analisis, bukan mengarang harga.
-- Tidak ada fitur auto-buy, auto-whisper, trade bot, atau full build planner.
+- Halaman `/watched-items` untuk create, edit, delete, target buy/sell, notes, dan status aktif.
+- Halaman `/snapshots` berisi compact summary card, tersortir dari `flip_score` tertinggi.
+- Halaman detail `/snapshots/[itemName]` untuk harga, target, margin, spread, reason codes, history, notes, dan AI explanation.
+- Import manual market snapshot dari JSON dan CSV.
+- AI hanya menjelaskan hasil analisis deterministik. AI tidak boleh mengarang harga atau history.
 
-## Menjalankan App
+## Setup
 
-Salin `.env.example` menjadi `.env.local`, lalu isi `OPENAI_API_KEY`.
+Salin `.env.example` menjadi `.env.local`, lalu isi `OPENAI_API_KEY` jika ingin memakai AI explanation.
 
 ```bash
 npm install
@@ -24,7 +25,28 @@ npm run dev
 
 Buka [http://localhost:3000](http://localhost:3000).
 
-## Import Snapshot Market
+## Manual Market Workflow
+
+1. Buka `poe.ninja/poe2/economy` atau sumber market lain secara manual.
+2. Pilih item yang ingin dipantau di `/watched-items`.
+3. Salin data harga secara manual ke CSV dengan kolom yang didukung.
+4. Import CSV:
+
+```bash
+npm run db:import:csv -- ./samples/market-snapshot.example.csv
+```
+
+5. Jalankan analisis:
+
+```bash
+npm run market:analyze
+```
+
+6. Review `/snapshots`.
+7. Buka detail item dari summary card.
+8. Gunakan AI explanation hanya setelah analisis deterministik tersedia.
+
+## Import JSON
 
 Format JSON bisa berupa array snapshot langsung, atau object dengan properti `watched_items` dan `snapshots`.
 
@@ -32,33 +54,50 @@ Format JSON bisa berupa array snapshot langsung, atau object dengan properti `wa
 npm run db:import -- ./samples/market-snapshot.example.json
 ```
 
-Contoh field snapshot yang didukung:
+## Import CSV
 
-```json
-{
-  "item_name": "Perfect Jeweller's Orb",
-  "category": "currency",
-  "price": 1.4,
-  "currency": "divine",
-  "quantity_available": 42,
-  "listings_count": 48,
-  "min_price": 1.32,
-  "max_price": 1.55,
-  "median_price": 1.4,
-  "source": "manual-check",
-  "snapshot_time": "2026-05-24T14:00:00.000Z"
-}
+```bash
+npm run db:import:csv -- ./samples/market-snapshot.example.csv
 ```
 
-## Test Market Analysis
+Kolom CSV:
 
-Jalankan analisis deterministik untuk semua watched item aktif:
+```txt
+item_name,category,price,currency,quantity_available,listings_count,min_price,max_price,median_price,snapshot_time,source,notes
+```
+
+`source` bisa berisi `poe.ninja`, `manual`, atau `trade-search`.
+
+Importer akan menolak row dengan `item_name` kosong, `price` negatif, angka invalid, atau `snapshot_time` invalid. Row invalid dilewati, row valid tetap diimport, lalu summary dicetak di akhir.
+
+## Market Analysis
+
+`flip_score` adalah skor peluang manual dari 0-100. Skor ini mempertimbangkan trend, liquidity, supply, volatility, target buy/sell, margin, dan spread.
+
+`confidence_score` adalah tingkat keyakinan dari 0-100. Skor ini naik jika data history cukup, harga terbaru ada, supply/listings tersedia, dan spread bisa dihitung. Skor turun jika data hilang atau volatilitas tinggi.
+
+`reason_codes` menjelaskan pemicu utama analisis, misalnya:
+
+- `BELOW_TARGET_BUY`: harga terbaru sudah di bawah target beli.
+- `ABOVE_TARGET_SELL`: harga terbaru sudah di atas target jual.
+- `LOW_SUPPLY`: supply terlihat rendah.
+- `HIGH_SPREAD`: spread harga terlalu lebar.
+- `TRENDING_UP`: harga naik dari snapshot sebelumnya.
+- `TRENDING_DOWN`: harga turun dari snapshot sebelumnya.
+- `STABLE_PRICE`: harga relatif stabil.
+- `NOT_ENOUGH_HISTORY`: jumlah snapshot belum cukup.
+- `GOOD_MARGIN`: target sell memberi margin yang sehat.
+- `LOW_CONFIDENCE`: data belum cukup kuat.
+
+## Test Analysis
+
+Semua watched item aktif:
 
 ```bash
 npm run market:analyze
 ```
 
-Atau satu item:
+Satu item:
 
 ```bash
 npm run market:analyze -- "Perfect Jeweller's Orb"
@@ -74,20 +113,19 @@ curl -X POST http://localhost:3000/api/ai/analyze \
   -d "{\"item_name\":\"Perfect Jeweller's Orb\"}"
 ```
 
-Response berisi JSON terstruktur:
+Response:
 
 ```json
 {
   "reports": [
     {
       "item_name": "Perfect Jeweller's Orb",
-      "summary": "Price is moving up with medium liquidity.",
-      "current_price": 1.4,
-      "trend": "up",
-      "flip_score": 55,
+      "summary": "Manual explanation based on deterministic data.",
       "recommendation": "watch",
-      "reasoning": "Explanation follows deterministic inputs only.",
+      "confidence": 72,
+      "key_reasons": ["TRENDING_UP", "GOOD_MARGIN"],
       "risk": "medium",
+      "suggested_action": "Review manually before taking any trade action.",
       "missing_data": []
     }
   ]

@@ -4,14 +4,14 @@
       "item_name": "Perfect Jeweller's Orb",
       "category": "currency",
       "target_buy_price": 1.35,
-      "target_sell_price": 1.8,
+      "target_sell_price": 1.5,
       "notes": "Trending up sample for socket crafting demand.",
       "active": true
     },
     {
       "item_name": "Greater Essence of Haste",
       "category": "essence",
-      "target_buy_price": 0.18,
+      "target_buy_price": 0.2,
       "target_sell_price": 0.28,
       "notes": "Trending down sample with abundant listings.",
       "active": true
@@ -37,6 +37,7 @@
       "max_price": 1.26,
       "median_price": 1.15,
       "source": "manual-sample",
+      "notes": "Baseline manual snapshot.",
       "snapshot_time": "2026-05-24T18:00:00.000Z"
     },
     {
@@ -50,6 +51,7 @@
       "max_price": 1.44,
       "median_price": 1.32,
       "source": "manual-sample",
+      "notes": "Demand started moving up.",
       "snapshot_time": "2026-05-24T19:00:00.000Z"
     },
     {
@@ -63,6 +65,7 @@
       "max_price": 1.72,
       "median_price": 1.58,
       "source": "manual-sample",
+      "notes": "Above target sell threshold.",
       "snapshot_time": "2026-05-24T20:00:00.000Z"
     },
     {
@@ -76,6 +79,7 @@
       "max_price": 0.37,
       "median_price": 0.32,
       "source": "manual-sample",
+      "notes": "Initial high demand check.",
       "snapshot_time": "2026-05-24T18:05:00.000Z"
     },
     {
@@ -89,6 +93,7 @@
       "max_price": 0.29,
       "median_price": 0.25,
       "source": "manual-sample",
+      "notes": "Listings increasing.",
       "snapshot_time": "2026-05-24T19:05:00.000Z"
     },
     {
@@ -102,6 +107,7 @@
       "max_price": 0.23,
       "median_price": 0.19,
       "source": "manual-sample",
+      "notes": "Below target buy but trend is weak.",
       "snapshot_time": "2026-05-24T20:05:00.000Z"
     },
     {
@@ -115,6 +121,7 @@
       "max_price": 0.68,
       "median_price": 0.62,
       "source": "manual-sample",
+      "notes": "Stable crafting base sample.",
       "snapshot_time": "2026-05-24T18:10:00.000Z"
     },
     {
@@ -128,6 +135,7 @@
       "max_price": 0.69,
       "median_price": 0.63,
       "source": "manual-sample",
+      "notes": "Small price movement only.",
       "snapshot_time": "2026-05-24T19:10:00.000Z"
     },
     {
@@ -141,6 +149,7 @@
       "max_price": 0.67,
       "median_price": 0.62,
       "source": "manual-sample",
+      "notes": "Stable latest snapshot.",
       "snapshot_time": "2026-05-24T20:10:00.000Z"
     }
   ]

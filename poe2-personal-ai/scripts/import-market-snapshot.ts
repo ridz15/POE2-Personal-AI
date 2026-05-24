@@ -2,30 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { getDb } from "../src/lib/db";
-
-const snapshotSchema = z.object({
-  item_name: z.string().optional(),
-  itemName: z.string().optional(),
-  name: z.string().optional(),
-  category: z.string().optional(),
-  league: z.string().optional(),
-  price: z.coerce.number(),
-  currency: z.string().default("divine"),
-  listings: z.coerce.number().int().optional(),
-  listings_count: z.coerce.number().int().optional(),
-  listingsCount: z.coerce.number().int().optional(),
-  quantity_available: z.coerce.number().int().optional(),
-  quantityAvailable: z.coerce.number().int().optional(),
-  min_price: z.coerce.number().optional(),
-  minPrice: z.coerce.number().optional(),
-  max_price: z.coerce.number().optional(),
-  maxPrice: z.coerce.number().optional(),
-  median_price: z.coerce.number().optional(),
-  medianPrice: z.coerce.number().optional(),
-  source: z.string().optional(),
-  snapshot_time: z.string().optional(),
-  snapshotTime: z.string().optional(),
-});
+import { importSnapshotRows, printImportSummary } from "./market-import-utils";
 
 const watchedItemSchema = z.object({
   item_name: z.string().optional(),
@@ -77,30 +54,29 @@ const insertWatchedItem = db.prepare(`
     active = excluded.active,
     updated_at = CURRENT_TIMESTAMP
 `);
-const insert = db.prepare(`
-  INSERT INTO market_snapshots (
-    item_name, category, league, price, currency, quantity_available, listings_count,
-    min_price, max_price, median_price, source, snapshot_time, raw_json
-  ) VALUES (
-    @itemName, @category, @league, @price, @currency, @quantityAvailable,
-    @listingsCount, @minPrice, @maxPrice, @medianPrice, @source, @snapshotTime, @rawJson
-  )
-`);
 
-const importRows = db.transaction((values: unknown[], watchedValues: unknown[]) => {
-  let snapshotCount = 0;
+const importWatchedItems = db.transaction((watchedValues: unknown[]) => {
   let watchedCount = 0;
 
   for (const value of watchedValues) {
-    const watchedItem = watchedItemSchema.parse(value);
+    const rowNumber = watchedCount + 1;
+    const parsed = watchedItemSchema.safeParse(value);
+
+    if (!parsed.success) {
+      console.error(`Watched item row ${rowNumber}: invalid watched item data.`);
+      continue;
+    }
+
+    const watchedItem = parsed.data;
     const itemName = watchedItem.item_name ?? watchedItem.itemName ?? watchedItem.name;
 
-    if (!itemName) {
-      throw new Error("Watched item row is missing item_name, itemName, or name.");
+    if (!itemName?.trim()) {
+      console.error(`Watched item row ${rowNumber}: item_name is required.`);
+      continue;
     }
 
     insertWatchedItem.run({
-      itemName,
+      itemName: itemName.trim(),
       category: watchedItem.category ?? null,
       targetBuyPrice: watchedItem.target_buy_price ?? watchedItem.targetBuyPrice ?? null,
       targetSellPrice: watchedItem.target_sell_price ?? watchedItem.targetSellPrice ?? null,
@@ -110,39 +86,13 @@ const importRows = db.transaction((values: unknown[], watchedValues: unknown[]) 
     watchedCount += 1;
   }
 
-  for (const value of values) {
-    const snapshot = snapshotSchema.parse(value);
-    const itemName = snapshot.item_name ?? snapshot.itemName ?? snapshot.name;
-
-    if (!itemName) {
-      throw new Error("Snapshot row is missing item_name, itemName, or name.");
-    }
-
-    insert.run({
-      itemName,
-      category: snapshot.category ?? null,
-      league: snapshot.league ?? null,
-      price: snapshot.price,
-      currency: snapshot.currency,
-      quantityAvailable:
-        snapshot.quantity_available ?? snapshot.quantityAvailable ?? snapshot.listings ?? null,
-      listingsCount:
-        snapshot.listings_count ?? snapshot.listingsCount ?? snapshot.listings ?? null,
-      minPrice: snapshot.min_price ?? snapshot.minPrice ?? snapshot.price,
-      maxPrice: snapshot.max_price ?? snapshot.maxPrice ?? snapshot.price,
-      medianPrice: snapshot.median_price ?? snapshot.medianPrice ?? snapshot.price,
-      source: snapshot.source ?? "manual-json",
-      snapshotTime:
-        snapshot.snapshot_time ?? snapshot.snapshotTime ?? new Date().toISOString(),
-      rawJson: JSON.stringify(value),
-    });
-    snapshotCount += 1;
-  }
-
-  return { snapshotCount, watchedCount };
+  return watchedCount;
 });
 
-const imported = importRows(rows, watchedRows);
-console.log(
-  `Imported ${imported.watchedCount} watched item(s) and ${imported.snapshotCount} market snapshot row(s).`,
-);
+const watchedCount = importWatchedItems(watchedRows);
+const snapshotSummary = importSnapshotRows(rows as Record<string, unknown>[], {
+  defaultSource: "manual-json",
+});
+
+console.log(`Imported ${watchedCount} watched item(s).`);
+printImportSummary(snapshotSummary);

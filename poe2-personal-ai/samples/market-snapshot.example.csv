@@ -1,0 +1,10 @@
+item_name,category,price,currency,quantity_available,listings_count,min_price,max_price,median_price,snapshot_time,source,notes
+Perfect Jeweller's Orb,currency,1.12,divine,62,66,1.05,1.24,1.12,2026-05-24T21:00:00.000Z,poe.ninja,CSV up baseline
+Perfect Jeweller's Orb,currency,1.36,divine,44,47,1.3,1.49,1.36,2026-05-24T22:00:00.000Z,manual,CSV up middle
+Perfect Jeweller's Orb,currency,1.61,divine,28,32,1.54,1.78,1.61,2026-05-24T23:00:00.000Z,trade-search,CSV above target sell
+Greater Essence of Haste,essence,0.31,divine,90,96,0.29,0.35,0.31,2026-05-24T21:05:00.000Z,poe.ninja,CSV down baseline
+Greater Essence of Haste,essence,0.24,divine,132,140,0.22,0.27,0.24,2026-05-24T22:05:00.000Z,manual,CSV down middle
+Greater Essence of Haste,essence,0.18,divine,180,192,0.16,0.21,0.18,2026-05-24T23:05:00.000Z,trade-search,CSV below target buy
+Expert Hexer's Robe,base,0.62,divine,39,42,0.58,0.68,0.62,2026-05-24T21:10:00.000Z,poe.ninja,CSV stable baseline
+Expert Hexer's Robe,base,0.63,divine,40,43,0.59,0.69,0.63,2026-05-24T22:10:00.000Z,manual,CSV stable middle
+Expert Hexer's Robe,base,0.62,divine,41,44,0.58,0.67,0.62,2026-05-24T23:10:00.000Z,trade-search,CSV stable latest

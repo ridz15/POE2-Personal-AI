@@ -5,12 +5,11 @@ import { useState } from "react";
 type AiReport = {
   item_name: string;
   summary: string;
-  current_price: number | null;
-  trend: string;
-  flip_score: number;
   recommendation: string;
-  reasoning: string;
+  confidence: number;
+  key_reasons: string[];
   risk: string;
+  suggested_action: string;
   missing_data: string[];
 };
 
@@ -59,7 +58,15 @@ export function AiExplanationButton({ itemName }: { itemName: string }) {
       {report ? (
         <div className="rounded-md border border-line bg-background p-3 text-xs leading-5 text-muted">
           <p className="font-semibold text-foreground">{report.summary}</p>
-          <p className="mt-2">{report.reasoning}</p>
+          <p className="mt-2">{report.suggested_action}</p>
+          <p className="mt-2">
+            Recommendation: {report.recommendation} | Confidence:{" "}
+            {report.confidence}/100
+          </p>
+          <p className="mt-2">
+            Key reasons:{" "}
+            {report.key_reasons.length ? report.key_reasons.join(", ") : "-"}
+          </p>
           <p className="mt-2">
             Risk: {report.risk} | Missing:{" "}
             {report.missing_data.length ? report.missing_data.join(", ") : "-"}
